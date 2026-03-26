@@ -229,8 +229,9 @@ uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id,
 void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id,
                            hid_report_type_t report_type, const uint8_t *buffer,
                            uint16_t bufsize) {
-  if (instance == USB_ITF_RAW_HID)
-    command_process(buffer);
+  if (instance == USB_ITF_RAW_HID && report_id == 0 &&
+      report_type == HID_REPORT_TYPE_OUTPUT)
+    command_enqueue(buffer, bufsize);
 }
 
 void tud_hid_report_complete_cb(uint8_t instance, const uint8_t *report,

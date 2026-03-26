@@ -207,10 +207,22 @@ _Static_assert(sizeof(command_out_buffer_t) <= RAW_HID_EP_SIZE,
 void command_init(void);
 
 /**
- * @brief Process a command buffer received from the raw HID interface
+ * @brief Queue a command buffer received from the raw HID interface
  *
- * @param in_buf Command buffer
+ * Note that only one command can be queued at a time. The queued command will
+ * be processed in the next call to `command_task`. Any subsequent commands
+ * while a command is queued will be dropped.
+ *
+ * @param buf Command buffer
+ * @param len Buffer length in bytes
+ *
+ * @return `true` if the command was queued
+ */
+bool command_enqueue(const uint8_t *buf, uint16_t len);
+
+/**
+ * @brief Process queued raw HID commands and send pending responses
  *
  * @return None
  */
-void command_process(const uint8_t *buf);
+void command_task(void);

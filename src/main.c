@@ -52,6 +52,7 @@ int main(void) {
   while (1) {
     tud_task();
 
+    command_task();
     analog_task();
     matrix_scan();
     layout_task();
