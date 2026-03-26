@@ -29,13 +29,39 @@
     break;                                                                     \
   }
 
-static uint8_t out_buf[RAW_HID_EP_SIZE];
 static const uint8_t keyboard_metadata[] = {KEYBOARD_METADATA};
 
-void command_init(void) {}
+// `volatile` to prevent compiler optimizations
+static volatile bool command_request_pending;
+static volatile bool command_response_pending;
+static uint8_t in_buf[RAW_HID_EP_SIZE];
+static uint8_t out_buf[RAW_HID_EP_SIZE];
 
-void command_process(const uint8_t *buf) {
-  const command_in_buffer_t *in = (const command_in_buffer_t *)buf;
+void command_init(void) {
+  command_request_pending = false;
+  command_response_pending = false;
+}
+
+bool command_enqueue(const uint8_t *buf, uint16_t len) {
+  if (len != RAW_HID_EP_SIZE || command_request_pending ||
+      command_response_pending)
+    // Either `command_request_pending` or `command_response_pending` is set
+    // means that there is already a command queued.
+    return false;
+
+  memcpy(in_buf, buf, RAW_HID_EP_SIZE);
+  command_request_pending = true;
+
+  return true;
+}
+
+/**
+ * @brief Process the queued command and write the response
+ *
+ * @return None
+ */
+static void command_process(void) {
+  const command_in_buffer_t *in = (const command_in_buffer_t *)in_buf;
   command_out_buffer_t *out = (command_out_buffer_t *)out_buf;
 
   bool success = true;
@@ -300,9 +326,17 @@ void command_process(const uint8_t *buf) {
 
   // Echo the command ID back to the host if successful
   out->command_id = success ? in->command_id : COMMAND_UNKNOWN;
+}
 
-  while (!tud_hid_n_ready(USB_ITF_RAW_HID))
-    // Wait for the raw HID interface to be ready
-    tud_task();
-  tud_hid_n_report(USB_ITF_RAW_HID, 0, out_buf, RAW_HID_EP_SIZE);
+void command_task(void) {
+  if (command_request_pending) {
+    command_process();
+    command_request_pending = false;
+    command_response_pending = true;
+  }
+
+  if (command_response_pending && tud_hid_n_ready(USB_ITF_RAW_HID) &&
+      tud_hid_n_report(USB_ITF_RAW_HID, 0, out_buf, RAW_HID_EP_SIZE))
+    // The command response has been sent, so clear the queue.
+    command_response_pending = false;
 }
