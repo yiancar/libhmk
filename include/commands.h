@@ -229,7 +229,7 @@ void command_init(void);
  * Note that only one command can be queued at a time. The queued command will
  * be processed in the next call to `command_task`. Any subsequent commands
  * while a command is queued will be dropped.
- * 
+ *
  * @param buf Command buffer
  * @param len Buffer length in bytes
  *
