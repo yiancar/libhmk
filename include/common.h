@@ -149,16 +149,24 @@ typedef enum {
   DKS_ACTION_TAP,
 } dks_action_t;
 
+#if !defined(DYNAMIC_KEYSTROKE_MAX_KEYCODES)
+#define DYNAMIC_KEYSTROKE_MAX_KEYCODES 32
+#endif
+
+_Static_assert(8 <= DYNAMIC_KEYSTROKE_MAX_KEYCODES &&
+                   DYNAMIC_KEYSTROKE_MAX_KEYCODES <= 64,
+               "DYNAMIC_KEYSTROKE_MAX_KEYCODES must be between 8 and 64");
+
 // Dynamic Keystroke configuration
 typedef struct __attribute__((packed)) {
-  // Bind up to 4 keycodes
-  uint8_t keycodes[4];
+  // Bind up to DYNAMIC_KEYSTROKE_MAX_KEYCODES keycodes
+  uint8_t keycodes[DYNAMIC_KEYSTROKE_MAX_KEYCODES];
   // For each keycode, bind up to 4 actions for each part of the keystroke
   // Bit 0-1: Action for key press
   // Bit 2-3: Action for key bottom-out
   // Bit 4-5: Action for key release from bottom-out
   // Bit 6-7: Action for key release
-  uint8_t bitmap[4];
+  uint8_t bitmap[DYNAMIC_KEYSTROKE_MAX_KEYCODES];
   // Bottom-out point (0-255)
   uint8_t bottom_out_point;
 } dynamic_keystroke_t;

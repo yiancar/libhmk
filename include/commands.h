@@ -61,6 +61,11 @@ typedef enum {
 // Input Report Structures
 //---------------------------------------------------------------------+
 
+// Number of advanced key bytes that fit in a single RawHID packet after the
+// command header fields.
+#define COMMAND_ADVANCED_KEYS_SET_BYTES_PER_PACKET 59
+#define COMMAND_ADVANCED_KEYS_GET_BYTES_PER_PACKET 62
+
 typedef struct __attribute__((packed)) {
   uint8_t offset;
 } command_in_analog_info_t;
@@ -99,9 +104,11 @@ typedef struct __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
   uint8_t profile;
-  uint8_t offset;
+  // Byte offset within `advanced_keys`
+  uint16_t offset;
+  // Number of bytes to write from `data`
   uint8_t len;
-  advanced_key_t advanced_keys[5];
+  uint8_t data[COMMAND_ADVANCED_KEYS_SET_BYTES_PER_PACKET];
 } command_in_advanced_keys_t;
 
 typedef struct __attribute__((packed)) {
@@ -158,6 +165,12 @@ typedef struct __attribute__((packed)) {
   uint8_t metadata[59];
 } command_out_metadata_t;
 
+typedef struct __attribute__((packed)) {
+  // Number of valid bytes in `data`
+  uint8_t len;
+  uint8_t data[COMMAND_ADVANCED_KEYS_GET_BYTES_PER_PACKET];
+} command_out_advanced_keys_t;
+
 // Command output buffer type
 typedef struct __attribute__((packed)) {
   uint8_t command_id;
@@ -182,7 +195,7 @@ typedef struct __attribute__((packed)) {
     // For `COMMAND_GET_ACTUATION_MAP`
     actuation_t actuation_map[15];
     // For `COMMAND_GET_ADVANCED_KEYS`
-    advanced_key_t advanced_keys[5];
+    command_out_advanced_keys_t advanced_keys;
     // For `COMMAND_GET_TICK_RATE`
     uint8_t tick_rate;
     // For `COMMAND_GET_GAMEPAD_BUTTONS`
@@ -194,6 +207,10 @@ typedef struct __attribute__((packed)) {
 
 _Static_assert(sizeof(command_out_buffer_t) <= RAW_HID_EP_SIZE,
                "Invalid command output buffer size");
+_Static_assert(sizeof(command_in_advanced_keys_t) == RAW_HID_EP_SIZE - 1,
+               "Invalid advanced key input packet size");
+_Static_assert(sizeof(command_out_advanced_keys_t) == RAW_HID_EP_SIZE - 1,
+               "Invalid advanced key output packet size");
 
 //---------------------------------------------------------------------+
 // Command API
@@ -212,7 +229,7 @@ void command_init(void);
  * Note that only one command can be queued at a time. The queued command will
  * be processed in the next call to `command_task`. Any subsequent commands
  * while a command is queued will be dropped.
- *
+ * 
  * @param buf Command buffer
  * @param len Buffer length in bytes
  *

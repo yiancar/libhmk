@@ -58,6 +58,11 @@ static void deferred_action_execute(const deferred_action_t *action) {
 void deferred_action_init(void) {}
 
 bool deferred_action_push(const deferred_action_t *action) {
+  return deferred_action_push_delayed(action, CURRENT_PROFILE.tick_rate);
+}
+
+bool deferred_action_push_delayed(const deferred_action_t *action,
+                                  uint16_t ticks) {
   if (queue_lock || queue_size == MAX_DEFERRED_ACTIONS)
     return false;
 
@@ -67,7 +72,7 @@ bool deferred_action_push(const deferred_action_t *action) {
       &queue[(queue_head + queue_size) & (MAX_DEFERRED_ACTIONS - 1)];
   queue_size++;
   *queue_tail = *action;
-  queue_tail->ticks = CURRENT_PROFILE.tick_rate;
+  queue_tail->ticks = ticks;
 
   queue_lock = false;
 
@@ -76,6 +81,7 @@ bool deferred_action_push(const deferred_action_t *action) {
 
 void deferred_action_process(void) {
   static deferred_action_t buffer[MAX_DEFERRED_ACTIONS];
+  static deferred_action_t pending[MAX_DEFERRED_ACTIONS];
 
   if (queue_lock || queue_size == 0)
     return;
@@ -85,22 +91,24 @@ void deferred_action_process(void) {
   // Copy actions in the queue to a buffer to avoid the queue being locked while
   // executing those actions
   uint32_t action_count = 0;
+  uint32_t pending_count = 0;
   for (uint32_t i = 0; i < queue_size; i++) {
     deferred_action_t *action =
         &queue[(queue_head + i) & (MAX_DEFERRED_ACTIONS - 1)];
 
-    // Make sure the ticks are not greater than the tick rate
-    action->ticks = M_MIN(action->ticks, CURRENT_PROFILE.tick_rate);
     if (action->ticks > 0) {
       // Decrement the ticks and skip the action if it is not ready yet
       action->ticks--;
+      pending[pending_count++] = *action;
       continue;
     }
     buffer[action_count++] = *action;
   }
-  // Move the head of the queue forward by the number of actions processed
-  queue_head = (queue_head + action_count) & (MAX_DEFERRED_ACTIONS - 1);
-  queue_size -= action_count;
+
+  // Rebuild the queue with only the actions that are still pending.
+  queue_head = 0;
+  queue_size = pending_count;
+  memcpy(queue, pending, pending_count * sizeof(*pending));
 
   queue_lock = false;
 

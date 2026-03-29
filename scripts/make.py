@@ -117,7 +117,7 @@ build_flags.define(
 
 # Wear leveling configuration
 wear_leveling = kb_json.wear_leveling
-wl_virtual_size = (wear_leveling and wear_leveling.virtual_size) or 8192
+wl_virtual_size = (wear_leveling and wear_leveling.virtual_size) or 16384
 wl_write_log_size = (wear_leveling and wear_leveling.write_log_size) or 65536
 wl_backing_store_size = wl_virtual_size + wl_write_log_size
 
@@ -137,6 +137,9 @@ build_flags.define("NUM_PROFILES", kb.num_profiles)
 build_flags.define("NUM_LAYERS", kb.num_layers)
 build_flags.define("NUM_KEYS", kb.num_keys)
 build_flags.define("NUM_ADVANCED_KEYS", kb.num_advanced_keys)
+build_flags.define(
+    "DYNAMIC_KEYSTROKE_MAX_KEYCODES", kb.dynamic_keystroke_max_keycodes
+)
 
 # Default Keymaps (per profile)
 default_keymaps = utils.resolve_default_keymaps(kb_json)

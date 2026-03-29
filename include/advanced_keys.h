@@ -35,7 +35,7 @@ typedef struct {
 
 typedef struct {
   // Whether each key binding is registered
-  bool is_pressed[4];
+  bool is_pressed[DYNAMIC_KEYSTROKE_MAX_KEYCODES];
   // Whether the key is bottomed out
   bool is_bottomed_out;
 } ak_state_dynamic_keystroke_t;

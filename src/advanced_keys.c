@@ -130,7 +130,10 @@ static void advanced_key_dynamic_keystroke(const advanced_key_event_t *event) {
 
   // Disable Rapid Trigger when the key is bound with Dynamic Keystroke
   matrix_disable_rapid_trigger(event->key, event_type != AK_EVENT_TYPE_RELEASE);
-  for (uint32_t i = 0; i < 4; i++) {
+  uint16_t tap_delay = 0;
+  const uint16_t tap_hold_ticks = 1;
+  const uint16_t tap_stride = M_MAX((uint16_t)CURRENT_PROFILE.tick_rate, 1);
+  for (uint32_t i = 0; i < DYNAMIC_KEYSTROKE_MAX_KEYCODES; i++) {
     const uint8_t keycode = dks->keycodes[i];
     // We arrange the event types so that we can use the event type as an index
     // to the bitmap.
@@ -151,13 +154,23 @@ static void advanced_key_dynamic_keystroke(const advanced_key_event_t *event) {
       // The report may have been modified in the previous step so we defer
       // the actual DKS action to the next matrix scan.
       deferred_action = (deferred_action_t){
-          .type = action == DKS_ACTION_PRESS ? DEFERRED_ACTION_TYPE_PRESS
-                                             : DEFERRED_ACTION_TYPE_TAP,
+          .type = DEFERRED_ACTION_TYPE_PRESS,
           .key = event->key,
           .keycode = keycode,
       };
-      state->is_pressed[i] = (deferred_action_push(&deferred_action) &
-                              (action == DKS_ACTION_PRESS));
+      bool queued = false;
+      if (action == DKS_ACTION_TAP) {
+        queued = deferred_action_push_delayed(&deferred_action, tap_delay);
+        if (queued) {
+          deferred_action.type = DEFERRED_ACTION_TYPE_RELEASE;
+          queued =
+              deferred_action_push_delayed(&deferred_action,
+                                           tap_delay + tap_hold_ticks);
+        }
+        tap_delay += tap_stride;
+      } else
+        queued = deferred_action_push(&deferred_action);
+      state->is_pressed[i] = queued & (action == DKS_ACTION_PRESS);
     }
   }
 }

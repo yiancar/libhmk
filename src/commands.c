@@ -231,30 +231,35 @@ static void command_process(void) {
   }
   case COMMAND_GET_ADVANCED_KEYS: {
     const command_in_advanced_keys_t *p = &in->advanced_keys;
+    const uint16_t advanced_keys_size =
+        sizeof(eeconfig->profiles[p->profile].advanced_keys);
 
     COMMAND_VERIFY(p->profile < NUM_PROFILES);
-    COMMAND_VERIFY(p->offset < NUM_ADVANCED_KEYS);
+    COMMAND_VERIFY(p->offset < advanced_keys_size);
 
-    memcpy(out->advanced_keys,
-           eeconfig->profiles[p->profile].advanced_keys + p->offset,
-           M_MIN(M_ARRAY_SIZE(out->advanced_keys),
-                 (uint32_t)(NUM_ADVANCED_KEYS - p->offset)) *
-               sizeof(advanced_key_t));
+    out->advanced_keys.len = M_MIN((uint16_t)M_ARRAY_SIZE(out->advanced_keys.data),
+                                   (uint16_t)(advanced_keys_size - p->offset));
+    memcpy(out->advanced_keys.data,
+           (const uint8_t *)eeconfig->profiles[p->profile].advanced_keys +
+               p->offset,
+           out->advanced_keys.len);
     break;
   }
   case COMMAND_SET_ADVANCED_KEYS: {
     const command_in_advanced_keys_t *p = &in->advanced_keys;
+    const uint16_t advanced_keys_size =
+        sizeof(eeconfig->profiles[p->profile].advanced_keys);
 
     COMMAND_VERIFY(p->profile < NUM_PROFILES);
-    COMMAND_VERIFY(p->offset < NUM_ADVANCED_KEYS);
-    COMMAND_VERIFY(p->len <= M_ARRAY_SIZE(p->advanced_keys) &&
-                   p->len <= NUM_ADVANCED_KEYS - p->offset);
+    COMMAND_VERIFY(p->offset < advanced_keys_size);
+    COMMAND_VERIFY(p->len <= M_ARRAY_SIZE(p->data) &&
+                   p->len <= advanced_keys_size - p->offset);
 
     if (p->profile == eeconfig->current_profile)
       advanced_key_clear();
-    success =
-        EECONFIG_WRITE_N(profiles[p->profile].advanced_keys[p->offset],
-                         p->advanced_keys, sizeof(advanced_key_t) * p->len);
+    success = wear_leveling_write(
+        offsetof(eeconfig_t, profiles[p->profile].advanced_keys) + p->offset,
+        p->data, p->len);
     if (p->profile == eeconfig->current_profile)
       layout_load_advanced_keys();
     break;

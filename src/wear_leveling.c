@@ -26,6 +26,11 @@ typedef enum {
   WL_STATUS_CONSOLIDATED,
 } wear_leveling_status_t;
 
+#define WL_FORMAT_VERSION 0x574C0002UL
+#define WL_CRC_ADDR WL_VIRTUAL_SIZE
+#define WL_FORMAT_ADDR (WL_CRC_ADDR + 4)
+#define WL_LOG_START_ADDR (WL_FORMAT_ADDR + 4)
+
 uint8_t wl_cache[WL_VIRTUAL_SIZE];
 
 static uint32_t starting_sector;
@@ -62,8 +67,9 @@ static void wear_leveling_clear_cache(void) {
   uint32_t *wl_cache32 = (uint32_t *)wl_cache;
   for (uint32_t i = 0; i < WL_VIRTUAL_SIZE / 4; i++)
     wl_cache32[i] = FLASH_EMPTY_VAL;
-  // Skip the first 4 bytes reserved for CRC32 checksum of the consolidated data
-  write_address = WL_VIRTUAL_SIZE + 4;
+  // Skip the 8 bytes reserved for the CRC32 checksum and format marker of the
+  // consolidated data.
+  write_address = WL_LOG_START_ADDR;
 }
 
 /**
@@ -84,9 +90,11 @@ static wear_leveling_status_t wear_leveling_read_consolidated(void) {
     // Check the CRC32 checksum
     const uint32_t expected = crc32_compute(wl_cache, WL_VIRTUAL_SIZE, 0);
     uint32_t actual;
+    uint32_t format;
 
-    if (!wear_leveling_flash_read(WL_VIRTUAL_SIZE, &actual, 1) ||
-        actual != expected)
+    if (!wear_leveling_flash_read(WL_CRC_ADDR, &actual, 1) ||
+        !wear_leveling_flash_read(WL_FORMAT_ADDR, &format, 1) ||
+        actual != expected || format != WL_FORMAT_VERSION)
       status = WL_STATUS_FAILED;
   }
 
@@ -116,7 +124,9 @@ static wear_leveling_status_t wear_leveling_write_consolidated(void) {
     // Write the CRC32 checksum
     const uint32_t checksum = crc32_compute(wl_cache, WL_VIRTUAL_SIZE, 0);
 
-    if (!wear_leveling_flash_write(WL_VIRTUAL_SIZE, &checksum, 1))
+    if (!wear_leveling_flash_write(WL_CRC_ADDR, &checksum, 1) ||
+        !wear_leveling_flash_write(WL_FORMAT_ADDR, &(uint32_t){WL_FORMAT_VERSION},
+                                   1))
       status = WL_STATUS_FAILED;
   }
 
@@ -128,7 +138,7 @@ static wear_leveling_status_t wear_leveling_consolidate_force(void) {
     return WL_STATUS_FAILED;
 
   const wear_leveling_status_t status = wear_leveling_write_consolidated();
-  write_address = WL_VIRTUAL_SIZE + 4;
+  write_address = WL_LOG_START_ADDR;
 
   return status;
 }
@@ -151,7 +161,7 @@ static wear_leveling_status_t wear_leveling_consolidate_if_needed(void) {
  */
 static wear_leveling_status_t wear_leveling_replay_log(void) {
   wear_leveling_status_t status = WL_STATUS_OK;
-  uint32_t addr = WL_VIRTUAL_SIZE + 4;
+  uint32_t addr = WL_LOG_START_ADDR;
 
   while (addr < WL_BACKING_STORE_SIZE) {
     uint32_t value;
@@ -168,7 +178,8 @@ static wear_leveling_status_t wear_leveling_replay_log(void) {
     wl_log_entry_t entry;
     entry.raw[0] = value;
 
-    if (entry.fields.addr + entry.fields.len > WL_VIRTUAL_SIZE) {
+    if (entry.fields.len == 0 || entry.fields.len > WL_MAX_BYTES_PER_ENTRY ||
+        entry.fields.addr + entry.fields.len > WL_VIRTUAL_SIZE) {
       // The entry is invalid
       status = WL_STATUS_FAILED;
       break;

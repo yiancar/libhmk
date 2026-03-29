@@ -38,8 +38,9 @@ typedef enum {
   DEFERRED_ACTION_TYPE_COUNT,
 } deferred_action_type_t;
 
-// Deferred action. The action will be deferred to the next matrix scan. This is
-// necessary to implement features like tapping keys and DKS.
+// Deferred action. The action will be deferred by a configurable number of
+// matrix scans. This is necessary to implement features like tapping keys and
+// serialized DKS actions.
 typedef struct {
   // Action to perform
   uint8_t type;
@@ -48,7 +49,7 @@ typedef struct {
   // Keycode associated with the action
   uint8_t keycode;
   // Number of matrix scans to wait before executing the action
-  uint8_t ticks;
+  uint16_t ticks;
 } deferred_action_t;
 
 //--------------------------------------------------------------------+
@@ -63,9 +64,9 @@ typedef struct {
 void deferred_action_init(void);
 
 /**
- * @brief Push a deferred action to the stack
+ * @brief Push a deferred action to the queue
  *
- * The action may not be pushed if the stack is locked or full. The stack is
+ * The action may not be pushed if the queue is locked or full. The queue is
  * locked if it is being processed.
  *
  * @param action Deferred action
@@ -73,6 +74,20 @@ void deferred_action_init(void);
  * @return true if the action was pushed, false otherwise
  */
 bool deferred_action_push(const deferred_action_t *action);
+
+/**
+ * @brief Push a deferred action with an explicit delay
+ *
+ * The action may not be pushed if the queue is locked or full. The queue is
+ * locked if it is being processed.
+ *
+ * @param action Deferred action
+ * @param ticks Number of matrix scans to wait before executing the action
+ *
+ * @return true if the action was pushed, false otherwise
+ */
+bool deferred_action_push_delayed(const deferred_action_t *action,
+                                  uint16_t ticks);
 
 /**
  * @brief Process all deferred actions and clear the stack

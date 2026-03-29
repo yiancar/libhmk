@@ -35,6 +35,7 @@ class KeyboardKeyboard(BaseModel):
     num_layers: int = Field(ge=1, le=8)
     num_keys: int = Field(ge=1, le=256)
     num_advanced_keys: int = Field(ge=1, le=64)
+    dynamic_keystroke_max_keycodes: int = Field(ge=8, le=64, default=32)
 
 
 # Hardware Configuration
@@ -86,7 +87,7 @@ class KeyboardCalibration(BaseModel):
 # Wear leveling Configuration
 class KeyboardWearLeveling(BaseModel):
     # Size of the virtual persistent storage in bytes. There must be enough RAM of this size to hold the entire virtual storage.
-    virtual_size: int = Field(ge=1, le=8192)
+    virtual_size: int = Field(ge=1, le=16384)
     # Size of the write log in bytes
     write_log_size: int = Field(ge=1, le=65536)
 
