@@ -150,12 +150,12 @@ typedef enum {
 } dks_action_t;
 
 #if !defined(DYNAMIC_KEYSTROKE_MAX_KEYCODES)
-#define DYNAMIC_KEYSTROKE_MAX_KEYCODES 32
+#define DYNAMIC_KEYSTROKE_MAX_KEYCODES 4
 #endif
 
-_Static_assert(8 <= DYNAMIC_KEYSTROKE_MAX_KEYCODES &&
+_Static_assert(4 <= DYNAMIC_KEYSTROKE_MAX_KEYCODES &&
                    DYNAMIC_KEYSTROKE_MAX_KEYCODES <= 64,
-               "DYNAMIC_KEYSTROKE_MAX_KEYCODES must be between 8 and 64");
+               "DYNAMIC_KEYSTROKE_MAX_KEYCODES must be between 4 and 64");
 
 // Dynamic Keystroke configuration
 typedef struct __attribute__((packed)) {

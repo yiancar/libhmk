@@ -11,8 +11,7 @@
     "num_profiles": 4,
     "num_layers": 4,
     "num_keys": 16,
-    "num_advanced_keys": 32,
-    "dynamic_keystroke_max_keycodes": 32
+    "num_advanced_keys": 32
   },
   "hardware": {
     "hse_value": 12000000,

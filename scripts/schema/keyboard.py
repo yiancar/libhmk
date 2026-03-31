@@ -35,7 +35,7 @@ class KeyboardKeyboard(BaseModel):
     num_layers: int = Field(ge=1, le=8)
     num_keys: int = Field(ge=1, le=256)
     num_advanced_keys: int = Field(ge=1, le=64)
-    dynamic_keystroke_max_keycodes: int = Field(ge=8, le=64, default=32)
+    dynamic_keystroke_max_keycodes: int = Field(ge=4, le=64, default=4)
 
 
 # Hardware Configuration

@@ -117,7 +117,7 @@ build_flags.define(
 
 # Wear leveling configuration
 wear_leveling = kb_json.wear_leveling
-wl_virtual_size = (wear_leveling and wear_leveling.virtual_size) or 16384
+wl_virtual_size = (wear_leveling and wear_leveling.virtual_size) or 8192
 wl_write_log_size = (wear_leveling and wear_leveling.write_log_size) or 65536
 wl_backing_store_size = wl_virtual_size + wl_write_log_size
 
