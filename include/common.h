@@ -159,7 +159,7 @@ typedef enum {
 
 // Dynamic Keystroke configuration
 typedef struct __attribute__((packed)) {
-  // Bind up to DYNAMIC_KEYSTROKE_MAX_KEYCODES keycodes
+  // Bind up to `NUM_DYNAMIC_KEYSTROKE_MAX_BINDINGS` keycodes
   uint8_t keycodes[NUM_DYNAMIC_KEYSTROKE_MAX_BINDINGS];
   // For each keycode, bind up to 4 actions for each part of the keystroke
   // Bit 0-1: Action for key press
