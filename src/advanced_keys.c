@@ -133,7 +133,7 @@ static void advanced_key_dynamic_keystroke(const advanced_key_event_t *event) {
   uint16_t tap_delay = 0;
   const uint16_t tap_hold_ticks = 1;
   const uint16_t tap_stride = M_MAX((uint16_t)CURRENT_PROFILE.tick_rate, 1);
-  for (uint32_t i = 0; i < DYNAMIC_KEYSTROKE_MAX_KEYCODES; i++) {
+  for (uint32_t i = 0; i < NUM_DYNAMIC_KEYSTROKE_MAX_BINDINGS; i++) {
     const uint8_t keycode = dks->keycodes[i];
     // We arrange the event types so that we can use the event type as an index
     // to the bitmap.
@@ -163,9 +163,8 @@ static void advanced_key_dynamic_keystroke(const advanced_key_event_t *event) {
         queued = deferred_action_push_delayed(&deferred_action, tap_delay);
         if (queued) {
           deferred_action.type = DEFERRED_ACTION_TYPE_RELEASE;
-          queued =
-              deferred_action_push_delayed(&deferred_action,
-                                           tap_delay + tap_hold_ticks);
+          queued = deferred_action_push_delayed(&deferred_action,
+                                                tap_delay + tap_hold_ticks);
         }
         tap_delay += tap_stride;
       } else

@@ -137,7 +137,9 @@ build_flags.define("NUM_PROFILES", kb.num_profiles)
 build_flags.define("NUM_LAYERS", kb.num_layers)
 build_flags.define("NUM_KEYS", kb.num_keys)
 build_flags.define("NUM_ADVANCED_KEYS", kb.num_advanced_keys)
-build_flags.define("DYNAMIC_KEYSTROKE_MAX_KEYCODES", kb.dynamic_keystroke_max_keycodes)
+build_flags.define(
+    "NUM_DYNAMIC_KEYSTROKE_MAX_BINDINGS", kb.num_dynamic_keystroke_max_bindings
+)
 
 # Default Keymaps (per profile)
 default_keymaps = utils.resolve_default_keymaps(kb_json)
