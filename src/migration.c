@@ -37,6 +37,10 @@ static bool v1_5_global_config_func(uint8_t *dst, const uint8_t *src);
 static bool v1_5_profile_config_func(uint8_t profile, uint8_t *dst,
                                      const uint8_t *src);
 
+#define MIGRATION_LEGACY_ADVANCED_KEY_SIZE 12
+#define MIGRATION_V1_5_ADVANCED_KEY_SIZE                                        \
+  (3 + 2 * NUM_DYNAMIC_KEYSTROKE_MAX_BINDINGS + 1)
+
 // Migration metadata for each configuration version. The first entry is
 // reserved for the initial version (v1.0) which does not require migration.
 static const migration_t migrations[] = {
@@ -112,12 +116,12 @@ static const migration_t migrations[] = {
         .global_config_size = 14             // Other fields
                               + NUM_KEYS * 2 // Bottom-out threshold
         ,
-        .profile_config_size = NUM_LAYERS * NUM_KEYS                  // Keymap
-                               + NUM_KEYS * 4                         // Actuation map
-                               + NUM_ADVANCED_KEYS * sizeof(advanced_key_t) // Advanced keys
-                               + NUM_KEYS                             // Gamepad buttons
-                               + 9                                    // Gamepad options
-                               + 1                                    // Tick rate
+        .profile_config_size = NUM_LAYERS * NUM_KEYS                          // Keymap
+                               + NUM_KEYS * 4                                 // Actuation map
+                               + NUM_ADVANCED_KEYS * MIGRATION_V1_5_ADVANCED_KEY_SIZE // Advanced keys
+                               + NUM_KEYS                                     // Gamepad buttons
+                               + 9                                            // Gamepad options
+                               + 1                                            // Tick rate
         ,
         .global_config_func = v1_5_global_config_func,
         .profile_config_func = v1_5_profile_config_func,
@@ -377,8 +381,9 @@ bool v1_5_profile_config_func(uint8_t profile, uint8_t *dst,
   // Expand each advanced key record from 12 bytes to the current size and
   // clear the newly-added Dynamic Keystroke slots.
   for (uint8_t i = 0; i < NUM_ADVANCED_KEYS; i++) {
-    migration_memcpy(&dst, &src, 12);
-    migration_memset(&dst, 0, sizeof(advanced_key_t) - 12);
+    migration_memcpy(&dst, &src, MIGRATION_LEGACY_ADVANCED_KEY_SIZE);
+    migration_memset(&dst, 0, MIGRATION_V1_5_ADVANCED_KEY_SIZE -
+                                   MIGRATION_LEGACY_ADVANCED_KEY_SIZE);
   }
 
   // Copy the remaining profile fields.
