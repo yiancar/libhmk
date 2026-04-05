@@ -26,7 +26,9 @@ typedef enum {
   WL_STATUS_CONSOLIDATED,
 } wear_leveling_status_t;
 
+// Reserve 4 bytes of CRC32 checksum for the consolidated data
 #define WL_CRC_ADDR WL_VIRTUAL_SIZE
+// The write log starts after the CRC32 checksum.
 #define WL_LOG_START_ADDR (WL_CRC_ADDR + 4)
 
 uint8_t wl_cache[WL_VIRTUAL_SIZE];
