@@ -104,7 +104,8 @@ typedef struct __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
   uint8_t profile;
-  // Byte offset within `advanced_keys`
+  // Byte offset within `advanced_keys`. Packets must not span multiple
+  // `advanced_key_t` records.
   uint16_t offset;
   // Number of bytes to write from `data`
   uint8_t len;
