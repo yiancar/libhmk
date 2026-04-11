@@ -37,26 +37,28 @@ static volatile bool command_response_pending;
 static uint8_t in_buf[RAW_HID_EP_SIZE];
 static uint8_t out_buf[RAW_HID_EP_SIZE];
 
-typedef struct {
-  bool active;
+static struct {
   uint8_t profile;
-  uint16_t key_index;
-  uint16_t next_offset;
+  uint32_t offset;
   uint8_t data[sizeof(advanced_key_t)];
-} advanced_key_write_state_t;
-
-static advanced_key_write_state_t advanced_key_write_state;
+} advanced_key_write_state;
 
 static void command_reset_advanced_key_write_state(void) {
-  advanced_key_write_state.active = false;
   advanced_key_write_state.profile = 0;
-  advanced_key_write_state.key_index = 0;
-  advanced_key_write_state.next_offset = 0;
+  advanced_key_write_state.offset = 0;
 }
 
+/**
+ * @brief Write the advanced key staged in `advanced_key_write_state`
+ *
+ * Caller must make sure that the staged advanced key is in a valid state.
+ *
+ * @return `true` if the write was successful
+ */
 static bool command_write_staged_advanced_key(void) {
   const uint8_t profile = advanced_key_write_state.profile;
-  const uint16_t key_index = advanced_key_write_state.key_index;
+  const uint8_t key_index =
+      advanced_key_write_state.offset / sizeof(advanced_key_t);
 
   if (profile >= NUM_PROFILES || key_index >= NUM_ADVANCED_KEYS)
     return false;
@@ -71,46 +73,53 @@ static bool command_write_staged_advanced_key(void) {
   if (profile == eeconfig->current_profile)
     layout_load_advanced_keys();
 
-  command_reset_advanced_key_write_state();
   return success;
 }
 
-static bool command_stage_advanced_key_write(
-    const command_in_advanced_keys_t *p) {
-  const uint16_t advanced_keys_size =
+/**
+ * @brief Stage the advanced key payload to be written at a later time to
+ * prevent partial writes to the persistent configuration
+ *
+ * @return `true` if the stage was successful
+ */
+static bool
+command_stage_advanced_key_write(const command_in_advanced_keys_t *p) {
+  const uint32_t advanced_keys_size =
       sizeof(eeconfig->profiles[p->profile].advanced_keys);
-  const uint16_t key_size = sizeof(advanced_key_t);
-  const uint16_t key_index = p->offset / key_size;
-  const uint16_t key_offset = p->offset % key_size;
+  const uint32_t advanced_key_size = sizeof(advanced_key_t);
 
-  if (p->offset >= advanced_keys_size || p->len > M_ARRAY_SIZE(p->data) ||
-      p->len > advanced_keys_size - p->offset || p->len == 0 ||
-      key_offset + p->len > key_size)
+  if (p->offset + p->len > advanced_keys_size ||
+      p->len > M_ARRAY_SIZE(p->data) || p->len == 0)
     goto fail;
 
-  if (key_offset == 0) {
-    if (advanced_key_write_state.active &&
-        (advanced_key_write_state.profile != p->profile ||
-         advanced_key_write_state.key_index != key_index))
-      goto fail;
-
-    advanced_key_write_state.active = true;
+  if (p->offset == 0) {
+    command_reset_advanced_key_write_state();
     advanced_key_write_state.profile = p->profile;
-    advanced_key_write_state.key_index = key_index;
-    advanced_key_write_state.next_offset = 0;
-    memset(advanced_key_write_state.data, 0, sizeof(advanced_key_write_state.data));
-  } else if (!advanced_key_write_state.active ||
-             advanced_key_write_state.profile != p->profile ||
-             advanced_key_write_state.key_index != key_index ||
-             advanced_key_write_state.next_offset != key_offset) {
-    goto fail;
   }
 
-  memcpy(advanced_key_write_state.data + key_offset, p->data, p->len);
-  advanced_key_write_state.next_offset = key_offset + p->len;
+  if (p->offset != advanced_key_write_state.offset ||
+      p->profile != advanced_key_write_state.profile)
+    // Unexpected write offset, or profile mismatch.
+    goto fail;
 
-  if (advanced_key_write_state.next_offset == key_size)
-    return command_write_staged_advanced_key();
+  for (uint32_t i = 0; i < p->len;) {
+    const uint32_t current_key_offset =
+        advanced_key_write_state.offset % advanced_key_size;
+    const uint32_t write_len =
+        M_MIN(p->len - i, advanced_key_size - current_key_offset);
+
+    memcpy(advanced_key_write_state.data + current_key_offset, p->data + i,
+           write_len);
+
+    if (p->len - i >= advanced_key_size - current_key_offset) {
+      const bool success = command_write_staged_advanced_key();
+      if (!success)
+        goto fail;
+    }
+
+    advanced_key_write_state.offset += write_len;
+    i += write_len;
+  }
 
   return true;
 
@@ -319,14 +328,14 @@ static void command_process(void) {
   }
   case COMMAND_GET_ADVANCED_KEYS: {
     const command_in_advanced_keys_t *p = &in->advanced_keys;
-    const uint16_t advanced_keys_size =
+    const uint32_t advanced_keys_size =
         sizeof(eeconfig->profiles[p->profile].advanced_keys);
 
     COMMAND_VERIFY(p->profile < NUM_PROFILES);
     COMMAND_VERIFY(p->offset < advanced_keys_size);
 
-    out->advanced_keys.len = M_MIN((uint16_t)M_ARRAY_SIZE(out->advanced_keys.data),
-                                   (uint16_t)(advanced_keys_size - p->offset));
+    out->advanced_keys.len = M_MIN(M_ARRAY_SIZE(out->advanced_keys.data),
+                                   advanced_keys_size - p->offset);
     memcpy(out->advanced_keys.data,
            (const uint8_t *)eeconfig->profiles[p->profile].advanced_keys +
                p->offset,
@@ -337,6 +346,7 @@ static void command_process(void) {
     const command_in_advanced_keys_t *p = &in->advanced_keys;
 
     COMMAND_VERIFY(p->profile < NUM_PROFILES);
+
     success = command_stage_advanced_key_write(p);
     break;
   }

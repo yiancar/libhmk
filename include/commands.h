@@ -61,10 +61,10 @@ typedef enum {
 // Input Report Structures
 //---------------------------------------------------------------------+
 
-// Number of advanced key bytes that fit in a single RawHID packet after the
-// command header fields.
-#define COMMAND_ADVANCED_KEYS_SET_BYTES_PER_PACKET 59
-#define COMMAND_ADVANCED_KEYS_GET_BYTES_PER_PACKET 62
+// Number of advanced key data bytes that fit in a single raw HID packet after
+// the command header fields.
+#define COMMAND_SET_ADVANCED_KEYS_BYTES_PER_PACKET 59
+#define COMMAND_GET_ADVANCED_KEYS_BYTES_PER_PACKET 62
 
 typedef struct __attribute__((packed)) {
   uint8_t offset;
@@ -104,12 +104,11 @@ typedef struct __attribute__((packed)) {
 
 typedef struct __attribute__((packed)) {
   uint8_t profile;
-  // Byte offset within `advanced_keys`. Packets must not span multiple
-  // `advanced_key_t` records.
+  // Byte offset within `advanced_keys`.
   uint16_t offset;
   // Number of bytes to write from `data`
   uint8_t len;
-  uint8_t data[COMMAND_ADVANCED_KEYS_SET_BYTES_PER_PACKET];
+  uint8_t data[COMMAND_SET_ADVANCED_KEYS_BYTES_PER_PACKET];
 } command_in_advanced_keys_t;
 
 typedef struct __attribute__((packed)) {
@@ -169,7 +168,7 @@ typedef struct __attribute__((packed)) {
 typedef struct __attribute__((packed)) {
   // Number of valid bytes in `data`
   uint8_t len;
-  uint8_t data[COMMAND_ADVANCED_KEYS_GET_BYTES_PER_PACKET];
+  uint8_t data[COMMAND_GET_ADVANCED_KEYS_BYTES_PER_PACKET];
 } command_out_advanced_keys_t;
 
 // Command output buffer type
